@@ -1,6 +1,8 @@
 linear models
 ================
 
+Load key packages.
+
 ``` r
 library(tidyverse)
 library(p8105.datasets)
@@ -8919,3 +8921,81 @@ anova(fit_null, fit_alternative) |>
     ## 2 price ~ stars + borough + …       30523 9.21e8     2  8.42e7     1394.       0
 
 ## Borough-level differences
+
+``` r
+fit =
+  nyc_airbnb |> 
+  lm(price = stars * borough + room_type * borough, data = _)
+
+fit |> 
+  broom::tidy()
+```
+
+    ## # A tibble: 184 × 5
+    ##    term                          estimate std.error statistic  p.value
+    ##    <chr>                            <dbl>     <dbl>     <dbl>    <dbl>
+    ##  1 (Intercept)                    130.        39.4      3.30  0.000971
+    ##  2 stars                            0.776      2.65     0.292 0.770   
+    ##  3 boroughBrooklyn                 25.5       41.2      0.619 0.536   
+    ##  4 boroughManhattan               107.        38.2      2.79  0.00532 
+    ##  5 boroughQueens                   11.0       42.2      0.260 0.795   
+    ##  6 neighborhoodArverne             20.5       29.0      0.708 0.479   
+    ##  7 neighborhoodAstoria              7.45      20.6      0.363 0.717   
+    ##  8 neighborhoodBath Beach         -16.2       72.2     -0.224 0.823   
+    ##  9 neighborhoodBattery Park City   -6.26      30.3     -0.206 0.837   
+    ## 10 neighborhoodBay Ridge          -14.4       27.2     -0.529 0.597   
+    ## # ℹ 174 more rows
+
+``` r
+airbnb_lm = function(df) {
+  lm(price ~ stars + room_type, data = df)
+}
+
+nyc_airbnb |> 
+  nest(df = -borough) |> 
+  mutate(
+    models = map(df, airbnb_lm), 
+    results = map(models, broom::tidy)
+  ) |> 
+  select(borough, results) |> 
+  unnest(results) |> 
+  select(borough, term, estimate) |> 
+  pivot_wider(
+    names_from = term, 
+    values_from = estimate
+  ) |> 
+  knitr::kable(digits = 2)
+```
+
+| borough   | (Intercept) | stars | room_typePrivate room | room_typeShared room |
+|:----------|------------:|------:|----------------------:|---------------------:|
+| Bronx     |       90.07 |  4.45 |                -52.91 |               -70.55 |
+| Queens    |       91.58 |  9.65 |                -69.26 |               -94.97 |
+| Brooklyn  |       69.63 | 20.97 |                -92.22 |              -105.84 |
+| Manhattan |       95.69 | 27.11 |               -124.19 |              -153.64 |
+
+same thing, just a little different
+
+``` r
+nyc_airbnb |> 
+  nest(df = -borough) |> 
+  mutate(
+    models = map(df, \(df) lm(price ~ stars + room_type, data = df)), 
+    results = map(models, broom::tidy)
+  ) |> 
+  select(borough, results) |> 
+  unnest(results) |> 
+  select(borough, term, estimate) |> 
+  pivot_wider(
+    names_from = term, 
+    values_from = estimate
+  ) |> 
+  knitr::kable(digits = 2)
+```
+
+| borough   | (Intercept) | stars | room_typePrivate room | room_typeShared room |
+|:----------|------------:|------:|----------------------:|---------------------:|
+| Bronx     |       90.07 |  4.45 |                -52.91 |               -70.55 |
+| Queens    |       91.58 |  9.65 |                -69.26 |               -94.97 |
+| Brooklyn  |       69.63 | 20.97 |                -92.22 |              -105.84 |
+| Manhattan |       95.69 | 27.11 |               -124.19 |              -153.64 |
